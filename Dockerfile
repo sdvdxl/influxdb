@@ -1,24 +1,35 @@
-FROM busybox:ubuntu-14.04
+FROM ubuntu:trusty
 
-MAINTAINER Jason Wilder "<jason@influxdb.com>"
+RUN apt-get update && apt-get install -y \
+    python-software-properties \
+    software-properties-common \
+    wget \
+    git \
+    mercurial \
+    make \
+    ruby \
+    ruby-dev \
+    rpm \
+    zip \
+    python \
+    python-boto
 
-# admin, http, udp, cluster, graphite, opentsdb, collectd
-EXPOSE 8083 8086 8086/udp 8088 2003 4242 25826
+RUN gem install fpm
 
-WORKDIR /app
+# Install go1.5+
+ENV GOPATH /root/go
+ENV GO_VERSION 1.5.2
+ENV GO_ARCH amd64
+RUN wget https://storage.googleapis.com/golang/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz; \
+   tar -C /usr/local/ -xf /go${GO_VERSION}.linux-${GO_ARCH}.tar.gz ; \
+   rm /go${GO_VERSION}.linux-${GO_ARCH}.tar.gz
+ENV PATH /usr/local/go/bin:$PATH
 
-# copy binary into image
-COPY influxd /app/
+ENV PROJECT_DIR $GOPATH/src/github.com/influxdb/influxdb
+ENV PATH $GOPATH/bin:$PATH
+RUN mkdir -p $PROJECT_DIR
+WORKDIR $PROJECT_DIR
 
-# Add influxd to the PATH
-ENV PATH=/app:$PATH
+VOLUME $PROJECT_DIR
 
-# Generate a default config
-RUN influxd config > /etc/influxdb.toml
-
-# Use /data for all disk storage
-RUN sed -i 's/dir = "\/.*influxdb/dir = "\/data/' /etc/influxdb.toml
-
-VOLUME ["/data"]
-
-ENTRYPOINT ["influxd", "--config", "/etc/influxdb.toml"]
+ENTRYPOINT [ "/root/go/src/github.com/influxdb/influxdb/build.py" ]
